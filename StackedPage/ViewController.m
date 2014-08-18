@@ -20,9 +20,14 @@
 
     self.view.backgroundColor = [UIColor redColor];
     
-    StackedViewDemo1 *controller = [StackedViewDemo1 new];
-    [self.navigationController pushViewController:controller animated:YES];
-    
+    UIButton *btn = [[UIButton alloc] initWithFrame:CGRectMake(10, 70, 60, 40)];
+    [btn setTitle:@"Demo1" forState:UIControlStateNormal];
+    [btn addTarget:self action:@selector(demo1) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:btn];
 }
 
+- (void)demo1 {
+    StackedViewDemo1 *controller = [StackedViewDemo1 new];
+    [self.navigationController pushViewController:controller animated:YES];
+}
 @end

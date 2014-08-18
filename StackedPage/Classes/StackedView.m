@@ -152,22 +152,59 @@
     return index >= self.visibleRange.location && index < (self.visibleRange.location + self.visibleRange.length);
 }
 
+- (NSInteger)indexOfPage:(StackablePage *)page {
+    NSInteger localIndex = [self.visiblePages indexOfObject:page];
+    if (localIndex != NSNotFound) {
+        return self.visibleRange.location + localIndex;
+    }
+    else {
+        return NSNotFound;
+    }
+}
+
 // select page
 - (void)selectPage:(StackablePage*)page animated:(BOOL)animated {
     if (_selectedPage != page) {
         NSTimeInterval duration = animated ? 0.3 : 0;
         
+        // deselect
+        _selectedPage.selected = NO;
+        StackablePage *tmp = _selectedPage;
+        _selectedPage = nil;
+        
+        // notify client
+        if (tmp) {
+            NSInteger index = [self indexOfPage:tmp];
+            if (index != NSNotFound) {
+                if ([self.delegate respondsToSelector:@selector(stackedView:didDeselectPageAtIndex:)]) {
+                    [self.delegate stackedView:self didDeselectPageAtIndex:index];
+                }
+            }
+        }
+        
+        // select
+        _selectedPage = page;
+        _selectedPage.selected = YES;
+        
+        // notify client
+        if (_selectedPage) {
+            NSInteger index = [self indexOfPage:_selectedPage];
+            if (index != NSNotFound) {
+                if ([self.delegate respondsToSelector:@selector(stackedView:didSelectPageAtIndex:)]) {
+                    [self.delegate stackedView:self didSelectPageAtIndex:index];
+                }
+            }
+        }
+        
+        if (self.disableScrollWhenSelected) {
+            self.scrollView.scrollEnabled = _selectedPage == nil;
+        }
+        
+        // layout animation
         [UIView animateWithDuration:duration animations:^{
-            _selectedPage.selected = NO;
-            _selectedPage = page;
-            _selectedPage.selected = YES;
-            
-            
             [self updateStackLayout:self.scrollView.contentOffset.y withSelectedPage:_selectedPage];
         } completion:^(BOOL finished) {
-            if (self.disableScrollWhenSelected) {
-                self.scrollView.scrollEnabled = _selectedPage != nil;
-            }
+            
         }];
     }
 }
@@ -439,22 +476,41 @@
 @end
 
 @implementation NetworkStackedView {
-    UIView *_loadMoreView;
+
 }
 
 - (id)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        _loadMoreView = [[UIView alloc] initWithFrame:CGRectMake(0, 10, 320, 44)];
-        _loadMoreView.backgroundColor = [UIColor orangeColor];
-        [self insertSubview:_loadMoreView belowSubview:self.scrollView];
+        self.disableScrollWhenSelected = YES;
     }
     return self;
 }
 
+- (void)setDisableScrollWhenSelected:(BOOL)disableScrollWhenSelected {
+    if (disableScrollWhenSelected) {
+        [super setDisableScrollWhenSelected:disableScrollWhenSelected];
+    }
+    else {
+        NIDASSERT(NO);
+    }
+}
+
+- (void)setRefreshIndicatorView:(RefreshIndicatorView *)refreshIndicatorView {
+    if (_refreshIndicatorView != refreshIndicatorView) {
+        [_refreshIndicatorView removeFromSuperview];
+        
+        _refreshIndicatorView = refreshIndicatorView;
+        
+        [_refreshIndicatorView setupWithScrollView:self.scrollView];
+        
+        [self insertSubview:_refreshIndicatorView belowSubview:self.scrollView];
+    }
+}
+
 - (BOOL)shouldUpdateLayoutWithOffset:(CGFloat)offset {
     if (self.scrollView.isDragging) {
-        return offset >= 0 || offset < -44;
+        return offset >= 0 || offset < -_refreshIndicatorView.bottom;
     }
     else {
         return YES;
@@ -463,35 +519,126 @@
 
 - (CGFloat)adjustOffset:(CGFloat)offset {
     if (offset < 0) {
-        offset = MIN(0, offset + 44);
+        offset = MIN(0, offset + _refreshIndicatorView.bottom);
     }
     return offset;
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
     [super scrollViewDidScroll:scrollView];
+}
+
+@end
+
+@implementation RefreshIndicatorView {
+    UIScrollView *_scrollView;
+    BOOL _isLoading;
+}
+
+- (void)dealloc {
+    [self clean];
+}
+
+- (void)clean {
+    [_scrollView removeObserver:self forKeyPath:@"contentOffset" context:nil];
+    _scrollView.topInset = 0;
+    _scrollView = nil;
+}
+
+- (void)setupWithScrollView:(UIScrollView *)scrollView {
+    [self clean];
     
-    if (!scrollView.isDragging && scrollView.contentOffset.y < -44) {
-        // loading more
-        
-        [UIView animateWithDuration:0.2 animations:^{
-            scrollView.topInset = 44;
-        } completion:^(BOOL finished) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [UIView animateWithDuration:0.3 animations:^{
-                    scrollView.topInset = 0;
-                }];
-            });
-        }];
+    _scrollView = scrollView;
+    [_scrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:nil];
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+    if ([keyPath isEqualToString:@"contentOffset"]) {
+        if (!_scrollView.isDragging && _scrollView.contentOffset.y < -self.bottom) {
+            [self startRefresh];
+        }
     }
 }
 
-@end
+- (void)finishedRefresh {
+    [UIView animateWithDuration:0.2 animations:^{
+         _scrollView.topInset = 0;
+        _isLoading = NO;
+    }];
+}
 
-@implementation RefreshIndicator
-
-- (void)setupWithScrollView:(UIScrollView *)scrollView {
-    
+- (BOOL)startRefresh {
+    if (!_isLoading) {
+        [self.delegate refreshIndicatorViewBeginRefresh:self];
+        
+        [UIView animateWithDuration:0.2 animations:^{
+            _scrollView.topInset = self.bottom;
+        } completion:^(BOOL finished) {
+            
+        }];
+        _isLoading = YES;
+        return YES;
+    }
+    return NO;
 }
 
 @end
+
+@implementation RefreshIndicatorView2 {
+    UIActivityIndicatorView *_activityView;
+    UILabel *_titleLabel;
+}
+
+- (id)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        [self setup];
+    }
+    return self;
+}
+
+- (void)setup {
+    _activityView = [UIActivityIndicatorView new];
+    _titleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+    [self addSubview:_activityView];
+    [self addSubview:_titleLabel];
+    
+    [self setState:NO];
+}
+
+- (void)setState:(BOOL)loading {
+    if (loading) {
+        _titleLabel.text = @"加载数据";
+    }
+    else {
+        _titleLabel.text = @"松开刷新";
+    }
+    [_titleLabel sizeToFit];
+    _titleLabel.center = CGPointMake(self.width / 2, self.height / 2);
+    _activityView.right = _titleLabel.left - 10;
+    _activityView.centerY = _titleLabel.centerY;
+    
+    if (loading) {
+        [_activityView startAnimating];
+    }
+    else {
+        [_activityView stopAnimating];
+    }
+}
+
+- (BOOL)startRefresh {
+    if ([super startRefresh]) {
+        [self setState:YES];
+        return YES;
+    }
+    return NO;
+}
+
+- (void)finishedRefresh {
+    [super finishedRefresh];
+    [self setState:NO];
+}
+@end
+
+
+

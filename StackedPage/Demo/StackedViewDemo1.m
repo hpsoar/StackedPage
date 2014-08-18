@@ -39,12 +39,13 @@
 
 @end
 
-@interface StackedViewDemo1 () <StackedViewDataSource, StackedViewDelegate>
+@interface StackedViewDemo1 () <StackedViewDataSource, StackedViewDelegate, RefreshIndicatorViewDelegate>
 
 @end
 
 @implementation StackedViewDemo1 {
     NetworkStackedView *_stackedView;
+    RefreshIndicatorView *_refreshIndicator;
 }
 
 - (void)viewDidLoad {
@@ -53,15 +54,25 @@
     
     self.automaticallyAdjustsScrollViewInsets = NO;
     
+    // 1. create StackedView
     _stackedView = [[NetworkStackedView alloc] initWithFrame:NIRectShift(self.view.bounds, 0, 64)];
     _stackedView.delegate = self;
     _stackedView.dataSource = self;
+
+    // 2. create RefreshIndicatorView
+    _refreshIndicator = [[RefreshIndicatorView2 alloc] initWithFrame:CGRectMake(0, 0, 320, 50)];
+    _refreshIndicator.backgroundColor = [UIColor orangeColor];
+    _refreshIndicator.delegate = self;
+    
+    // 3. setup refresh
+    _stackedView.refreshIndicatorView = _refreshIndicator;
     
     [self.view addSubview:_stackedView];
     
     [_stackedView reload];
 }
 
+#pragma mark - StackedViewDataSource
 - (StackablePage *)stackView:(StackedView *)stackView pageForIndex:(NSInteger)index {
     StackablePage *page = [stackView dequeueReusablePage];
     if (page == nil) {
@@ -82,12 +93,27 @@
     return 20;
 }
 
+#pragma mark - StackedViewDelegate
 - (CGFloat)stackedHeightForPageAtIndex:(NSInteger)index {
     return 44.0;
 }
 
 - (CGFloat)expandedHeightForPageAtIndex:(NSInteger)index {
     return 360;
+}
+
+#pragma mark - RefreshIndicatorViewDelegate
+
+- (void)refreshIndicatorViewBeginRefresh:(RefreshIndicatorView *)refreshIndicatorView {
+    [self doRefresh];
+}
+
+- (void)doRefresh {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        NIDPRINT(@"refresh finished");
+        
+        [_refreshIndicator finishedRefresh];
+    });
 }
 
 @end
