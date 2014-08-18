@@ -13,14 +13,13 @@
 // StackablePageDelegate
 @protocol StackablePageDelegate <NSObject>
 
-- (void)stackablePageSelected:(StackablePage *)page;
+- (void)stackablePageRequiredToBeSelected:(StackablePage *)page;
 
-@optional
+- (void)stackablePageRequiredToBeDeselected:(StackablePage *)page;
+
 - (void)stackablePageRequiredToHideOthers:(StackablePage *)page;
 
 - (void)stackablePageRequiredToShowOthers:(StackablePage *)page;
-
-- (NSRange)stackablePagePositionInVisiablePages:(StackablePage *)page;
 
 @end
 
@@ -48,34 +47,21 @@
 
 @protocol StackedViewDelegate <NSObject>
 
-///method for setting the current page at the index
-- (UIView*)stackView:(StackedView *)stackView pageForIndex:(NSInteger)index;
-
-///total number of pages to present in the stack
-- (NSInteger)numberOfPagesForStackView:(StackedView *)stackView;
-
 - (CGFloat)stackedHeightForPageAtIndex:(NSInteger)index;
 
 - (CGFloat)expandedHeightForPageAtIndex:(NSInteger)index;
 
-// TODO: 去掉updatePage...
-@optional
-- (UIView *)headerViewForStackedView:(StackedView *)stackedView;
+@end
 
-- (void)stackedView:(StackedView *)stackedView willShowHeaderView:(UIView *)headerView;
-- (void)stackedView:(StackedView *)stackedView didShowHeaderView:(UIView *)headerView;
-- (void)stackedView:(StackedView *)stackedView willHideHeaderView:(UIView *)headerView;
-- (void)stackedView:(StackedView *)stackedView didHideHeaderView:(UIView *)headerView;
+#pragma mark - StackedViewDataSource
 
+@protocol StackedViewDataSource <NSObject>
 
-// 现在下面这些没什么用
-//- (void)stackView:(StackedPageView *)stackView didSelectPage:(UIView *)page atIndex:(NSInteger)index;
-//
-//- (void)stackView:(StackedPageView *)stackView willSelectPage:(UIView *)page atIndex:(NSInteger)index;
-//
-//- (void)stackView:(StackedPageView *)stackView willDeselectPage:(UIView *)page atIndex:(NSInteger)index;
-//
-//- (void)stackView:(StackedPageView *)stackView didDeselectPage:(UIView *)page atIndex:(NSInteger)index;
+///method for setting the current page at the index
+- (StackablePage*)stackView:(StackedView *)stackView pageForIndex:(NSInteger)index;
+
+///total number of pages to present in the stack
+- (NSInteger)numberOfPagesForStackView:(StackedView *)stackView;
 
 @end
 
@@ -90,33 +76,20 @@
 
 @property (nonatomic) BOOL disableScrollWhenSelected;
 
-@property (nonatomic) BOOL toggleSelection;
-
-@property (nonatomic, weak) id<StackedViewDelegate> delegate;
-
-@property (nonatomic) NSInteger selectedIndex;
+@property (nonatomic) BOOL showScrollIndicator;
 
 @property (nonatomic, readonly) StackablePage *selectedPage;
 
-@property (nonatomic) BOOL showScrollIndicator;
+@property (nonatomic, weak) id<StackedViewDelegate> delegate;
+@property (nonatomic, weak) id<StackedViewDataSource> dataSource;
 
-// TODO: use StackablePage
 - (StackablePage*)dequeueReusablePage;
 
-// 删除所有page，重新加载
+// 删除所有page，清除选中状态，重新加载
 - (void)reload;
 
 - (void)selectPageAtIndex:(NSInteger)index animated:(BOOL)animated;
 
-// TODO: implement
-- (StackablePage*)pageAtIndex:(NSInteger)index;
-
-- (NSInteger)indexOfPage:(StackablePage *)page;
-
 - (void)debug;
-
-- (void)pinTopView;
-
-- (void)unpinTopView;
 
 @end

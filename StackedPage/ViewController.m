@@ -7,6 +7,7 @@
 //
 
 #import "ViewController.h"
+#import "StackedViewDemo1.h"
 
 @interface ViewController ()
 
@@ -18,6 +19,10 @@
     [super viewDidLoad];
 
     self.view.backgroundColor = [UIColor redColor];
+    
+    StackedViewDemo1 *controller = [StackedViewDemo1 new];
+    [self.navigationController pushViewController:controller animated:YES];
+    
 }
 
 @end
