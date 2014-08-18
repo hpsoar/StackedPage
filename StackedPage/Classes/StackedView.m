@@ -162,12 +162,8 @@
             _selectedPage = page;
             _selectedPage.selected = YES;
             
-            if (_selectedPage) {
-                [self updateStackLayout:self.scrollView.contentOffset.y withSelectedPage:_selectedPage];
-            }
-            else {
-                [self updateStackLayout:self.scrollView.contentOffset.y];
-            }
+            
+            [self updateStackLayout:self.scrollView.contentOffset.y withSelectedPage:_selectedPage];
         } completion:^(BOOL finished) {
             if (self.disableScrollWhenSelected) {
                 self.scrollView.scrollEnabled = _selectedPage != nil;
@@ -341,18 +337,26 @@
 
 // update layout with selected page
 - (void)updateStackLayout:(CGFloat)offset withSelectedPage:(StackablePage *)selectedPage {
-    CGFloat yOffset = offset + self.topMargin;
-    CGRect frame = selectedPage.frame;
-    frame.origin.y = yOffset;
-    selectedPage.frame = frame;
-    yOffset += frame.size.height + self.spaceBetweenExpanedPageAndPackedPages;
-    for (UIView *page in self.visiblePages) {
-        if (page != selectedPage) {
-            frame = page.frame;
-            frame.origin.y = yOffset;
-            page.frame = frame;
-            yOffset += self.heightWhenPackedAtBottom;
+    NIDASSERT(selectedPage == self.selectedPage);
+    
+    if (selectedPage) {
+        CGFloat yOffset = offset + self.topMargin;
+        CGRect frame = selectedPage.frame;
+        frame.origin.y = yOffset;
+        selectedPage.frame = frame;
+        yOffset += frame.size.height + self.spaceBetweenExpanedPageAndPackedPages;
+        for (UIView *page in self.visiblePages) {
+            if (page != selectedPage) {
+                frame = page.frame;
+                frame.origin.y = yOffset;
+                page.frame = frame;
+                yOffset += self.heightWhenPackedAtBottom;
+            }
         }
+    }
+    else {
+        // no selected page
+        [self updateStackLayout:offset];
     }
 }
 
@@ -368,9 +372,20 @@
 }
 
 - (void)stackablePageRequiredToShowOthers:(UIView *)page {
+    [self updateStackLayout:self.scrollView.contentOffset.y withSelectedPage:self.selectedPage];
 }
 
 - (void)stackablePageRequiredToHideOthers:(UIView *)page {
+    [UIView animateWithDuration:0.3 animations:^{
+        for (UIView *v in self.visiblePages) {
+            if (v != page) {
+                CGRect frame = v.frame;
+                frame.origin.y = self.scrollView.contentOffset.y + 1000;
+                v.frame = frame;
+            }
+        }
+    }];
+
 }
 
 #pragma mark - scrollview delegate
