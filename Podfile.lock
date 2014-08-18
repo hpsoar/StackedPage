@@ -1,0 +1,10 @@
+PODS:
+  - Nimbus/Core (0.9.3)
+
+DEPENDENCIES:
+  - Nimbus/Core (~> 0.9.3)
+
+SPEC CHECKSUMS:
+  Nimbus: 7fe7059d4633c2e1421ce480f194fecd0601c5ae
+
+COCOAPODS: 0.33.1
