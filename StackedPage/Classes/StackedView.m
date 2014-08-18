@@ -106,6 +106,7 @@
     return self.scrollView.contentSize.height > 10;
 }
 
+// reload
 - (void)reload {
     CGFloat minHeight = self.height;
     CGFloat bottomMargin = 10;
@@ -130,6 +131,7 @@
     [self updateStackLayout:self.scrollView.contentOffset.y];
 }
 
+// select page at index
 - (void)selectPageAtIndex:(NSInteger)index animated:(BOOL)animated {
     if (![self pageAtIndexIsVisible:index]) {
         CGFloat yOffset = index * [self.delegate stackedHeightForPageAtIndex:0];
@@ -150,6 +152,7 @@
     return index >= self.visibleRange.location && index < (self.visibleRange.location + self.visibleRange.length);
 }
 
+// select page
 - (void)selectPage:(StackablePage*)page animated:(BOOL)animated {
     if (_selectedPage != page) {
         NSTimeInterval duration = animated ? 0.3 : 0;
@@ -215,6 +218,7 @@
     NSLog(@"%d, %d", self.visiblePages.count, self.reusablePages.count);
 }
 
+// compute visible range
 - (NSRange)computeVisibleRange:(CGFloat)offset {
     CGFloat endY = offset + CGRectGetHeight(self.scrollView.bounds) - self.topMargin;
     CGFloat startY = offset;
@@ -235,6 +239,70 @@
     }
 }
 
+// deque
+- (UIView *)dequeueReusablePage {
+    if (self.reusablePages.count > 0) {
+        UIView *page = [self.reusablePages firstObject];
+        [self.reusablePages removeObject:page];
+        return page;
+    }
+    return nil;
+}
+
+// enqueue
+- (void)reusePage:(StackablePage *)page {
+    [self.visiblePages removeObject:page];
+    
+    [page removeFromSuperview];
+    
+    [self.reusablePages addObject:page];
+}
+
+// remove from bottom
+- (StackablePage *)popFrontVisiblePage {
+    if (self.visiblePages.count > 0) {
+        StackablePage *page = self.visiblePages[0];
+        [self reusePage:page];
+        return page;
+    }
+    else {
+        return nil;
+    }
+}
+
+// remove from top
+- (StackablePage *)popBackVisblePage {
+    if (self.visiblePages.count > 0) {
+        StackablePage *page = self.visiblePages.lastObject;
+        [self reusePage:page];
+        return page;
+    }
+    else {
+        return nil;
+    }
+}
+
+// add page
+- (UIView *)addPageAtIndex:(NSInteger)index fromBottom:(BOOL)fromBottom {
+    StackablePage *page = (StackablePage *)[self.dataSource stackView:self pageForIndex:index];
+    
+    page.index = index;
+    
+    page.layer.zPosition = index; // arrange the order of views TODO: remove this, zPosition will only affect visibility, doesn't affect the order of touch event handling
+    
+    page.delegate = self;
+    
+    if (fromBottom) {
+        [self.scrollView addSubview:page];
+        [self.visiblePages addObject:page];
+    }
+    else {
+        [self.scrollView insertSubview:page atIndex:0];
+        [self.visiblePages insertObject:page atIndex:0];
+    }
+    
+    return page;
+}
 
 // update layout
 - (void)updateStackLayout:(CGFloat)offset {
@@ -286,66 +354,6 @@
             yOffset += self.heightWhenPackedAtBottom;
         }
     }
-}
-
-- (UIView *)dequeueReusablePage {
-    if (self.reusablePages.count > 0) {
-        UIView *page = [self.reusablePages firstObject];
-        [self.reusablePages removeObject:page];
-        return page;
-    }
-    return nil;
-}
-
-- (StackablePage *)popFrontVisiblePage {
-    if (self.visiblePages.count > 0) {
-        StackablePage *page = self.visiblePages[0];
-        [self reusePage:page];
-        return page;
-    }
-    else {
-        return nil;
-    }
-}
-
-- (StackablePage *)popBackVisblePage {
-    if (self.visiblePages.count > 0) {
-        StackablePage *page = self.visiblePages.lastObject;
-        [self reusePage:page];
-        return page;
-    }
-    else {
-        return nil;
-    }
-}
-
-- (void)reusePage:(StackablePage *)page {
-    [self.visiblePages removeObject:page];
-    
-    [page removeFromSuperview];
-    
-    [self.reusablePages addObject:page];
-}
-
-- (UIView *)addPageAtIndex:(NSInteger)index fromBottom:(BOOL)fromBottom {
-    StackablePage *page = (StackablePage *)[self.dataSource stackView:self pageForIndex:index];
-    
-    page.index = index;
-    
-    page.layer.zPosition = index; // arrange the order of views TODO: remove this, zPosition will only affect visibility, doesn't affect the order of touch event handling
-    
-    page.delegate = self;
-    
-    if (fromBottom) {
-        [self.scrollView addSubview:page];
-        [self.visiblePages addObject:page];
-    }
-    else {
-        [self.scrollView insertSubview:page atIndex:0];
-        [self.visiblePages insertObject:page atIndex:0];
-    }
-    
-    return page;
 }
 
 #pragma mark  - StackablePage delegate
