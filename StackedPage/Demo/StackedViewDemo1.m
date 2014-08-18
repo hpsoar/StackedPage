@@ -44,14 +44,16 @@
 @end
 
 @implementation StackedViewDemo1 {
-    StackedView *_stackedView;
+    NetworkStackedView *_stackedView;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor whiteColor];
     
-    _stackedView = [[StackedView alloc] initWithFrame:self.view.bounds];
+    self.automaticallyAdjustsScrollViewInsets = NO;
+    
+    _stackedView = [[NetworkStackedView alloc] initWithFrame:NIRectShift(self.view.bounds, 0, 64)];
     _stackedView.delegate = self;
     _stackedView.dataSource = self;
     

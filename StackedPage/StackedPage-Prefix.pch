@@ -18,3 +18,4 @@
 #import "UIView+Utility.h"
 
 #import "NIDebuggingTools.h"
+#import "NIFoundationMethods.h"

@@ -302,15 +302,15 @@
 
 // update layout
 - (void)updateStackLayout:(CGFloat)offset {
-    NIDPRINT(@"%f, %f, %f", offset, self.scrollView.height, self.scrollView.contentSize.height);
     CGFloat overlapHeight;
     CGFloat stackedHeight = [self.delegate stackedHeightForPageAtIndex:0];
     
     overlapHeight = MAX(0, offset - self.visibleRange.location * stackedHeight);
     
-    CGFloat addedSpace = MAX(-offset / self.visiblePages.count, 0) * 3;
+    CGFloat addedSpace = MAX(-offset, 0) * 3 / 12;
     if (self.visiblePages.count > 0) {
         CGFloat yOffset = self.topMargin;
+        
         if ([self.dataSource numberOfPagesForStackView:self] > 1) { // 只有一页时，可以自由滑动
             yOffset += offset + addedSpace;
         }
@@ -318,6 +318,7 @@
         UIView *page = self.visiblePages[0];
         CGRect frame = page.frame;
         frame.origin.y = yOffset;
+        NIDPRINT(@"%f, %f, %f, %f, %f, %d", offset, self.scrollView.height, self.scrollView.contentSize.height, yOffset, addedSpace, self.visiblePages.count);
         page.frame = frame;
         page.height = [self.delegate expandedHeightForPageAtIndex:self.visibleRange.location + 0];
         
@@ -395,16 +396,26 @@
     }
     
     CGFloat offset = scrollView.contentOffset.y;
-    NIDPRINT(@"offset: %f", offset);
-    
     [self updateVisiblePageswWithContentOffset:offset];
     
     // unselect page when scroll
     if (self.selectedPage) {
         [self selectPage:nil animated:NO];
     }
-    
-    [self updateStackLayout:offset];
+
+    if ([self shouldUpdateLayoutWithOffset:offset]) {
+        offset = [self adjustOffset:offset];
+        
+        [self updateStackLayout:offset];
+    }
+}
+
+- (BOOL)shouldUpdateLayoutWithOffset:(CGFloat)offset {
+    return YES;
+}
+
+- (CGFloat)adjustOffset:(CGFloat)offset {
+    return offset;
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
@@ -423,6 +434,64 @@
         NIDPRINT(@"%@", page.superview);
         NIDPRINT(@"%f, %f, %f, %f", page.left, page.top, page.width, page.height);
     }
+}
+
+@end
+
+@implementation NetworkStackedView {
+    UIView *_loadMoreView;
+}
+
+- (id)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        _loadMoreView = [[UIView alloc] initWithFrame:CGRectMake(0, 10, 320, 44)];
+        _loadMoreView.backgroundColor = [UIColor orangeColor];
+        [self insertSubview:_loadMoreView belowSubview:self.scrollView];
+    }
+    return self;
+}
+
+- (BOOL)shouldUpdateLayoutWithOffset:(CGFloat)offset {
+    if (self.scrollView.isDragging) {
+        return offset >= 0 || offset < -44;
+    }
+    else {
+        return YES;
+    }
+}
+
+- (CGFloat)adjustOffset:(CGFloat)offset {
+    if (offset < 0) {
+        offset = MIN(0, offset + 44);
+    }
+    return offset;
+}
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    [super scrollViewDidScroll:scrollView];
+    
+    if (!scrollView.isDragging && scrollView.contentOffset.y < -44) {
+        // loading more
+        
+        [UIView animateWithDuration:0.2 animations:^{
+            scrollView.topInset = 44;
+        } completion:^(BOOL finished) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [UIView animateWithDuration:0.3 animations:^{
+                    scrollView.topInset = 0;
+                }];
+            });
+        }];
+    }
+}
+
+@end
+
+@implementation RefreshIndicator
+
+- (void)setupWithScrollView:(UIScrollView *)scrollView {
+    
 }
 
 @end

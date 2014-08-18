@@ -93,3 +93,14 @@
 - (void)debug;
 
 @end
+
+@interface NetworkStackedView : StackedView
+
+@end
+
+@interface RefreshIndicator : UIView
+
+- (void)setupWithScrollView:(UIScrollView *)scrollView;
+
+@end
+
