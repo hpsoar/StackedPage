@@ -153,12 +153,12 @@
 - (void)selectPage:(StackablePage*)page animated:(BOOL)animated {
     if (_selectedPage != page) {
         NSTimeInterval duration = animated ? 0.3 : 0;
-     
-        _selectedPage.selected = NO;
-        _selectedPage = page;
-        _selectedPage.selected = YES;
         
         [UIView animateWithDuration:duration animations:^{
+            _selectedPage.selected = NO;
+            _selectedPage = page;
+            _selectedPage.selected = YES;
+            
             if (_selectedPage) {
                 [self updateStackLayout:self.scrollView.contentOffset.y withSelectedPage:_selectedPage];
             }
@@ -166,6 +166,9 @@
                 [self updateStackLayout:self.scrollView.contentOffset.y];
             }
         } completion:^(BOOL finished) {
+            if (self.disableScrollWhenSelected) {
+                self.scrollView.scrollEnabled = _selectedPage != nil;
+            }
         }];
     }
 }
@@ -372,6 +375,11 @@
     NIDPRINT(@"offset: %f", offset);
     
     [self updateVisiblePageswWithContentOffset:offset];
+    
+    // unselect page when scroll
+    if (self.selectedPage) {
+        [self selectPage:nil animated:NO];
+    }
     
     [self updateStackLayout:offset];
 }
